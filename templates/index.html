@@ -1,0 +1,604 @@
+<!-- 
+ 
+Human Scar Detection (Industry Application Project)
+COSC 5437 Neural Networking
+Fangze Zhou & Serban Voinea Gabreanu
+
+This is the HTML file for the "Investigator" page, which is essentially the second step of our project.
+Here the user can discuss their results from step 1, and/or talk about where they could have gotten their scar
+from with the LLM. Then they click next step and they get a Tattoo generated through ChatGPT's API.
+
+-->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scarface - The Scar Investigator</title>
+    <style>
+        :root {
+            --primary-red: #B22222;
+            --dark-red: #8B0000;
+            --light-gray: #f0f0f0;
+            --medium-gray: #ccc;
+            --dark-gray: #333;
+            --background-color: #1c1c1c;
+            --text-color: #e0e0e0;
+            --user-msg-bg: #4a4a4a;
+            --assistant-msg-bg: #2a2a2a;
+        }
+
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 260px;
+            background-color: #111;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--dark-gray);
+        }
+
+        .sidebar h1 {
+            font-size: 24px;
+            color: var(--primary-red);
+            margin-top: 0;
+            text-align: center;
+            border-bottom: 1px solid var(--dark-red);
+            padding-bottom: 15px;
+        }
+
+        .sidebar-button {
+            background-color: var(--primary-red);
+            color: white;
+            border: none;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+
+        .sidebar-button:hover {
+            background-color: var(--dark-red);
+        }
+        
+        .sidebar-button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+
+        .chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .chat-window {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            word-break: break-word;
+        }
+
+        .message.user {
+            background-color: var(--user-msg-bg);
+            align-self: flex-end;
+            border-bottom-right-radius: 0;
+        }
+
+        .message.assistant {
+            background-color: var(--assistant-msg-bg);
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+        }
+        
+        .message.system {
+            align-self: center;
+            background-color: #333;
+            color: #aaa;
+            font-style: italic;
+            font-size: 0.9em;
+            text-align: center;
+            width: 80%;
+        }
+
+        .message-role {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: var(--primary-red);
+        }
+        
+        .message img {
+            max-width: 300px;
+            border-radius: 10px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        /* NEW: Styles for the "thinking" indicator */
+        .message.thinking .thinking-dots span {
+            display: inline-block;
+            animation: blink 1.4s infinite both;
+        }
+
+        .message.thinking .thinking-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .message.thinking .thinking-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes blink {
+            0% { opacity: 0.2; }
+            20% { opacity: 1; }
+            100% { opacity: 0.2; }
+        }
+
+        .input-area {
+            display: flex;
+            padding: 20px;
+            border-top: 1px solid var(--dark-gray);
+            background-color: #111;
+        }
+
+        #message-input {
+            flex-grow: 1;
+            padding: 15px;
+            border: 1px solid var(--dark-gray);
+            border-radius: 8px;
+            background-color: var(--dark-gray);
+            color: var(--text-color);
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        #send-button, #upload-button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            background-color: var(--primary-red);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s;
+        }
+        
+        #upload-button {
+            margin-right: 10px;
+        }
+
+        #send-button:hover, #upload-button:hover {
+            background-color: var(--dark-red);
+        }
+        
+        #image-preview-container {
+            position: relative;
+            margin-right: 15px;
+        }
+        
+        #image-preview {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid var(--primary-red);
+        }
+        
+        #remove-image-btn {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--dark-red);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            line-height: 20px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                flex-direction: row;
+                justify-content: space-around;
+                align-items: center;
+                padding: 10px;
+                box-sizing: border-box;
+            }
+            .sidebar h1 {
+                display: none;
+            }
+            .sidebar-button {
+                padding: 10px 15px;
+                margin: 0 5px;
+            }
+            .chat-container {
+                height: calc(100vh - 80px); /* Adjust based on sidebar height */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="sidebar">
+            <h1>Scarface</h1>
+            <button id="go-to-step3-btn" class="sidebar-button" style="display: none;">Go to Step 3</button>
+            <button id="next-step-btn" class="sidebar-button">Next Step</button>
+            <button id="exit-btn" class="sidebar-button">Exit</button>
+        </div>
+
+        <div class="chat-container">
+            <div class="chat-window" id="chat-window">
+                <!-- Messages will be appended here -->
+            </div>
+            <div class="input-area" id="input-area">
+                <div id="image-preview-container" style="display: none;">
+                    <img id="image-preview" src="" alt="Image Preview"/>
+                    <button id="remove-image-btn">x</button>
+                </div>
+                <input type="file" id="image-upload" accept="image/*" style="display: none;">
+                <button id="upload-button" title="Upload Image">🖼️</button>
+                <input type="text" id="message-input" placeholder="Describe your scar...">
+                <button id="send-button" title="Send Message">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatWindow = document.getElementById('chat-window');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const uploadButton = document.getElementById('upload-button');
+        const imageUpload = document.getElementById('image-upload');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const removeImageBtn = document.getElementById('remove-image-btn');
+        const nextStepBtn = document.getElementById('next-step-btn');
+        const exitBtn = document.getElementById('exit-btn');
+        const goToStep3Btn = document.getElementById('go-to-step3-btn');
+        const inputArea = document.getElementById('input-area');
+
+        let conversationHistory = [];
+        let uploadedImageBase64 = null;
+        let isWaitingForResponse = false;
+        let finalDiagnosisText = null;
+
+        function toggleLoading(isLoading) {
+            isWaitingForResponse = isLoading;
+            messageInput.disabled = isLoading;
+            sendButton.disabled = isLoading;
+            uploadButton.disabled = isLoading;
+            nextStepBtn.disabled = isLoading;
+            sendButton.innerHTML = isLoading ? '...' : '➤';
+        }
+
+        function addMessage(role, text, imageUrl = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', role);
+
+            const roleDiv = document.createElement('div');
+            roleDiv.classList.add('message-role');
+            roleDiv.textContent = role === 'user' ? 'You' : 'Scarface';
+            messageDiv.appendChild(roleDiv);
+            
+            const textDiv = document.createElement('div');
+            textDiv.textContent = text;
+            messageDiv.appendChild(textDiv);
+
+            if (imageUrl) {
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.alt = "Uploaded image";
+                messageDiv.appendChild(img);
+            }
+
+            chatWindow.appendChild(messageDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+        
+        function addSystemMessage(text) {
+             const messageDiv = document.createElement('div');
+             messageDiv.classList.add('message', 'system');
+             messageDiv.textContent = text;
+             chatWindow.appendChild(messageDiv);
+             chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function showThinkingIndicator(show) {
+            const existingIndicator = document.getElementById('thinking-indicator');
+            if (existingIndicator) {
+                existingIndicator.remove();
+            }
+
+            if (show) {
+                const messageDiv = document.createElement('div');
+                messageDiv.id = 'thinking-indicator';
+                messageDiv.classList.add('message', 'assistant', 'thinking');
+
+                const roleDiv = document.createElement('div');
+                roleDiv.classList.add('message-role');
+                roleDiv.textContent = 'Scarface';
+                messageDiv.appendChild(roleDiv);
+                
+                const textDiv = document.createElement('div');
+                textDiv.innerHTML = `is thinking<span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>`;
+                messageDiv.appendChild(textDiv);
+
+                chatWindow.appendChild(messageDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+        }
+
+        async function sendMessage() {
+            const messageText = messageInput.value.trim();
+            if (!messageText && !uploadedImageBase64) return;
+            if (isWaitingForResponse) return;
+
+            toggleLoading(true);
+            
+            const userImage = uploadedImageBase64 ? `data:image/jpeg;base64,${uploadedImageBase64}` : null;
+            addMessage('user', messageText, userImage);
+            
+            const currentMessage = messageInput.value;
+            const currentImage = uploadedImageBase64;
+            
+            messageInput.value = '';
+            clearImagePreview();
+            
+            showThinkingIndicator(true);
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: currentMessage,
+                        image: currentImage,
+                        history: conversationHistory
+                    })
+                });
+
+                showThinkingIndicator(false);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Network response was not ok');
+                }
+
+                const data = await response.json();
+                conversationHistory = data.history;
+                addMessage('assistant', data.reply);
+
+            } catch (error) {
+                showThinkingIndicator(false);
+                console.error('Error:', error);
+                addSystemMessage(`Error: Could not connect to the Scarface AI. ${error.message}`);
+            } finally {
+                toggleLoading(false);
+                messageInput.focus();
+            }
+        }
+        
+        async function startInitialChat() {
+            toggleLoading(true);
+            addSystemMessage("Contacting Scarface... Please wait while the model loads. This may take a moment.");
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ history: [] })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Network response was not ok');
+                }
+                
+                const data = await response.json();
+                conversationHistory = data.history;
+                
+                chatWindow.innerHTML = '';
+                
+                conversationHistory.forEach(msg => {
+                    let textContent = '';
+                    let imageUrl = null;
+                    if (Array.isArray(msg.content)) {
+                        msg.content.forEach(item => {
+                            if (item.type === 'text') textContent = item.text;
+                            if (item.type === 'image_url') imageUrl = item.image_url.url;
+                        });
+                    } else {
+                        textContent = msg.content;
+                    }
+                    addMessage(msg.role, textContent, imageUrl);
+                });
+
+
+            } catch (error) {
+                console.error('Error on initial load:', error);
+                chatWindow.innerHTML = '';
+                addSystemMessage(`Fatal Error: Could not initialize the Scarface AI. Please check the server console. ${error.message}`);
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadedImageBase64 = e.target.result.split(',')[1];
+                imagePreview.src = e.target.result;
+                imagePreviewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function clearImagePreview() {
+            uploadedImageBase64 = null;
+            imageUpload.value = '';
+            imagePreviewContainer.style.display = 'none';
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        uploadButton.addEventListener('click', () => imageUpload.click());
+        imageUpload.addEventListener('change', handleImageUpload);
+        removeImageBtn.addEventListener('click', clearImagePreview);
+
+        nextStepBtn.addEventListener('click', async () => {
+            if (!conversationHistory.length) {
+                addSystemMessage("There is no conversation to save.");
+                return;
+            }
+            toggleLoading(true);
+            addSystemMessage("Generating final story and saving conversation...");
+            try {
+                const response = await fetch('/next_step', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ history: conversationHistory })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    addSystemMessage("Successfully saved. The final story has been generated. You may now proceed to Step 3.");
+                    addMessage('assistant', data.final_story);
+                    
+                    finalDiagnosisText = data.final_story;
+
+                    // Lock the UI
+                    inputArea.style.display = 'none';
+                    nextStepBtn.style.display = 'none';
+                    goToStep3Btn.style.display = 'block';
+                    goToStep3Btn.disabled = false;
+
+                } else {
+                    throw new Error(data.error || "Failed to complete the 'Next Step' process.");
+                }
+            } catch (error) {
+                console.error('Next Step Error:', error);
+                addSystemMessage(`Error: ${error.message}`);
+            } finally {
+                // We don't toggleLoading(false) here to keep the UI locked.
+                nextStepBtn.disabled = true;
+            }
+        });
+
+        goToStep3Btn.addEventListener('click', async () => {
+            if (!finalDiagnosisText) {
+                addSystemMessage("Error: Final diagnosis text is not available.");
+                return;
+            }
+
+            addSystemMessage("Preparing data for Step 3...");
+            goToStep3Btn.disabled = true;
+            goToStep3Btn.textContent = 'Processing...';
+
+            const images_b64 = [];
+            conversationHistory.forEach(message => {
+                if (message.role === 'user' && Array.isArray(message.content)) {
+                    message.content.forEach(item => {
+                        if (item.type === 'image_url' && item.image_url.url) {
+                            const base64String = item.image_url.url.split(',')[1];
+                            if (base64String) {
+                                images_b64.push(base64String);
+                            }
+                        }
+                    });
+                }
+            });
+
+            try {
+                const response = await fetch('/start_step3', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        final_diagnosis: finalDiagnosisText,
+                        images: images_b64
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    addSystemMessage("Data successfully sent to Step 3. This investigation is complete.");
+                    goToStep3Btn.textContent = 'Done!';
+                } else {
+                    throw new Error(data.message || "Failed to send data to Step 3.");
+                }
+            } catch (error) {
+                console.error('Go to Step 3 Error:', error);
+                addSystemMessage(`Error: ${error.message}`);
+                goToStep3Btn.disabled = false;
+                goToStep3Btn.textContent = 'Go to Step 3';
+            }
+        });
+
+        exitBtn.addEventListener('click', async () => {
+            if (confirm("Are you sure you want to close the application server?")) {
+                addSystemMessage("Shutting down server...");
+                try {
+                    await fetch('/exit', { method: 'POST' });
+                    document.body.innerHTML = "<h1>Server has been shut down. You can close this window.</h1>";
+                } catch (error) {
+                    document.body.innerHTML = "<h1>Server shutdown command sent. You can close this window.</h1>";
+                }
+            }
+        });
+        
+        window.onload = startInitialChat;
+
+    </script>
+</body>
+</html>
